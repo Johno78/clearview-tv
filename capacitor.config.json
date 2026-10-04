@@ -1,0 +1,18 @@
+{
+  "appId": "app.clearview.tv",
+  "appName": "Clearview",
+  "webDir": "www",
+  "backgroundColor": "#04050d",
+  "server": {
+    "androidScheme": "http",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true
+  },
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  }
+}
