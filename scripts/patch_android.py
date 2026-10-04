@@ -37,3 +37,77 @@ dest.mkdir(parents=True, exist_ok=True)
 if banner.exists():
     shutil.copy(banner, dest / "banner.png")
 print("patched", manifest)
+
+# ---- External player plugin (hands streams to VLC / any video app) ----
+java_dir = root / "android/app/src/main/java/app/clearview/tv"
+java_dir.mkdir(parents=True, exist_ok=True)
+
+(java_dir / "ExternalPlayerPlugin.java").write_text('''package app.clearview.tv;
+
+import android.content.ActivityNotFoundException;
+import android.content.Intent;
+import android.net.Uri;
+
+import com.getcapacitor.JSObject;
+import com.getcapacitor.Plugin;
+import com.getcapacitor.PluginCall;
+import com.getcapacitor.PluginMethod;
+import com.getcapacitor.annotation.CapacitorPlugin;
+
+@CapacitorPlugin(name = "ExternalPlayer")
+public class ExternalPlayerPlugin extends Plugin {
+
+    @PluginMethod
+    public void open(PluginCall call) {
+        String url = call.getString("url");
+        if (url == null || url.isEmpty()) {
+            call.reject("url required");
+            return;
+        }
+        String title = call.getString("title", "");
+        String pkg = call.getString("pkg", "");
+        Integer pos = call.getInt("positionMs", 0);
+
+        Intent i = new Intent(Intent.ACTION_VIEW);
+        i.setDataAndTypeAndNormalize(Uri.parse(url), "video/*");
+        i.putExtra("title", title);
+        if (pos != null && pos > 0) {
+            i.putExtra("position", (long) pos);
+        }
+
+        JSObject ret = new JSObject();
+        try {
+            if (pkg != null && !pkg.isEmpty()) {
+                i.setPackage(pkg);
+                getActivity().startActivity(i);
+            } else {
+                getActivity().startActivity(Intent.createChooser(i, "Play with"));
+            }
+            ret.put("launched", true);
+            call.resolve(ret);
+        } catch (ActivityNotFoundException e) {
+            ret.put("launched", false);
+            ret.put("reason", "not_installed");
+            call.resolve(ret);
+        } catch (Exception e) {
+            call.reject("Could not open player: " + e.getMessage());
+        }
+    }
+}
+''')
+
+(java_dir / "MainActivity.java").write_text('''package app.clearview.tv;
+
+import android.os.Bundle;
+
+import com.getcapacitor.BridgeActivity;
+
+public class MainActivity extends BridgeActivity {
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        registerPlugin(ExternalPlayerPlugin.class);
+        super.onCreate(savedInstanceState);
+    }
+}
+''')
+print("external player plugin written")

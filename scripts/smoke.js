@@ -59,6 +59,23 @@ const check = (name, cond, extra) => { console.log((cond ? 'PASS ' : 'FAIL ') + 
   // favourites reflect
   await cv.go('favs', {}, { reset: true }); await sleep(100);
   check('favourites shown', q('.chan') === 1);
+
+  // external player (VLC) path, with a mocked native bridge
+  const calls = [];
+  w.Capacitor = { isNativePlatform: () => true, registerPlugin: () => ({ open: async o => { calls.push(o); return { launched: true }; } }) };
+  cv.S.opts.player = 'vlc';
+  await cv.go('live', {}, { reset: true }); await sleep(150);
+  w.document.querySelector('.row-ch').click(); await sleep(150);
+  check('VLC mode: live goes external, not built-in', calls.length === 1 && !cv.P.open && calls[0].pkg === 'org.videolan.vlc' && /^https?:/.test(calls[0].url), calls[0] && calls[0].pkg);
+  await cv.go('vod', { id: cv.S.d.vod[0].stream_id }, { reset: true }); await sleep(250);
+  check('movie page has Play in VLC', /Play in VLC/.test(w.document.querySelector('.detail').textContent));
+  cv.S.opts.player = 'builtin';
+  const btn = [...w.document.querySelectorAll('.btn')].find(b => /Play in VLC/.test(b.textContent)); btn.click(); await sleep(100);
+  check('Play in VLC button forces VLC', calls.length === 2 && !cv.P.open);
+  await cv.go('settings', {}, { reset: true }); await sleep(100);
+  check('settings has player picker', q('.chip') === 3);
+  w.document.querySelectorAll('.chip')[1].click();
+  check('picker saves choice', cv.S.opts.player === 'vlc' && JSON.parse(w.localStorage.getItem('cv.opts')).player === 'vlc');
   // sign out path renders login
   await cv.go('login', {}, { reset: true }); await sleep(100);
   check('login form', q('.input') === 3);

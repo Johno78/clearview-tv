@@ -50,7 +50,7 @@ const S = {
   creds: LS.get('creds', null), demo: LS.get('demo', false), info: null,
   d: { liveCats: [], live: [], vodCats: [], vod: [], serCats: [], series: [] },
   favs: LS.get('favs', { live: [], vod: [], series: [] }),
-  prog: LS.get('prog', {}), stack: [], cur: null
+  prog: LS.get('prog', {}), opts: Object.assign({ player: 'builtin' }, LS.get('opts', {})), stack: [], cur: null
 };
 const favKey = (t, id) => t + ':' + id;
 const isFav = (t, id) => S.favs[t].indexOf(String(id)) >= 0;
@@ -144,6 +144,11 @@ const api = {
     } finally { clearTimeout(to); }
   },
   live(id) { return S.demo ? DEMO_HLS : this.base() + '/live/' + this.cred() + '/' + id + '.m3u8'; },
+  liveExt(id) {
+    if (S.demo) return DEMO_HLS;
+    const f = S.info && S.info.allowed_output_formats; const ts = !Array.isArray(f) || !f.length || f.indexOf('ts') >= 0;
+    return this.base() + '/live/' + this.cred() + '/' + id + (ts ? '.ts' : '.m3u8');
+  },
   movie(id, ext) { return S.demo ? DEMO_HLS : this.base() + '/movie/' + this.cred() + '/' + id + '.' + (ext || 'mp4'); },
   episode(id, ext) { return S.demo ? DEMO_HLS : this.base() + '/series/' + this.cred() + '/' + id + '.' + (ext || 'mp4'); }
 };
@@ -461,7 +466,8 @@ views.vod = async (v, { id }) => {
     h('div', { class: 'cover' }, art(it.stream_icon, it.name)),
     h('div', { class: 'body' }, h('h1', null, it.name), meta, plot,
       h('div', { class: 'acts' },
-        h('div', { class: 'f btn pri', tabindex: 0, 'data-autofocus': '1', onclick: () => playVod({ ...rec(), url: api.movie(id, ext) }) }, pr ? '▶  Resume from ' + fmtDur(pr.t) : '▶  Play'),
+        h('div', { class: 'f btn pri', tabindex: 0, 'data-autofocus': '1', onclick: () => playVod({ ...rec(), url: api.movie(id, ext) }) }, pr ? '\u25b6  Resume from ' + fmtDur(pr.t) : '\u25b6  Play'),
+        isNative() ? h('div', { class: 'f btn', tabindex: 0, onclick: () => playVod({ ...rec(), url: api.movie(id, ext) }, null, 0, 'vlc') }, 'Play in VLC') : null,
         pr ? h('div', { class: 'f btn', tabindex: 0, onclick: () => { delete S.prog[key]; LS.set('prog', S.prog); playVod({ ...rec(), url: api.movie(id, ext) }); } }, 'Start over') : null,
         favBtn))));
   try {
@@ -513,6 +519,16 @@ views.favs = async (v) => {
   if (!ch.length && !mv.length && !sr.length) v.append(h('div', { class: 'empty' }, 'Nothing saved yet.', h('br'), 'Highlight a channel, movie or series and press the Menu button (☰), or use “Add to favourites” on its page.'));
 };
 
+function playerPicker() {
+  const opts = [['builtin', 'Built-in'], ['vlc', 'VLC'], ['any', 'Choose app']];
+  const box = h('div', { class: 'chips', style: 'padding-left:0' });
+  opts.forEach(([id, label]) => box.append(h('div', { class: 'f chip' + (S.opts.player === id ? ' on' : ''), tabindex: 0, 'data-id': id, onclick: () => {
+    S.opts.player = id; LS.set('opts', S.opts); $$('.chip', box).forEach(c => c.classList.toggle('on', c.dataset.id === id));
+    toast(id === 'builtin' ? 'Using the built-in player' : id === 'vlc' ? 'Using VLC for live TV, movies and episodes' : 'You\u2019ll pick a player app each time');
+  } }, label)));
+  return h('div', null, h('label', { style: 'display:block;color:var(--dim);font-size:1.15rem;margin:1.4rem 0 .2rem' }, 'Player for live TV, movies and episodes'), box,
+    h('div', { class: 'hint', style: 'padding-left:0' }, isNative() ? 'VLC must be installed on the Fire TV (free in the Fire TV app store).' : 'VLC and other apps work in the Fire TV app, not in a browser.'));
+}
 views.settings = async (v) => {
   const i = S.info || {}; const exp = +i.exp_date ? new Date(+i.exp_date * 1000).toLocaleDateString() : 'Unlimited / unknown';
   v.append(h('div', { class: 'card', style: 'margin-top:2rem' }, h('h1', null, 'Settings'),
@@ -521,6 +537,7 @@ views.settings = async (v) => {
       h('span', null, 'Status'), h('span', null, i.status || '—'), h('span', null, 'Expires'), h('span', null, exp),
       h('span', null, 'Connections'), h('span', null, (i.active_cons || 0) + ' of ' + (i.max_connections || '?') + ' in use'),
       h('span', null, 'Library'), h('span', null, S.d.live.length + ' channels · ' + S.d.vod.length + ' movies · ' + S.d.series.length + ' series')),
+    playerPicker(),
     h('div', { class: 'acts' },
       h('div', { class: 'f btn pri', tabindex: 0, 'data-autofocus': '1', onclick: async () => { boot('Refreshing library…'); epgCache.clear(); await loadLibrary(bootMsg); bootOff(); go('home', {}, { reset: true }); } }, 'Refresh library'),
       h('div', { class: 'f btn', tabindex: 0, onclick: () => { S.prog = {}; LS.set('prog', S.prog); toast('Continue watching cleared'); } }, 'Clear continue watching'),
@@ -533,7 +550,7 @@ const pv = () => $('#video');
 function showUI(el, ms) { const n = $(el); n.classList.add('on'); clearTimeout(P.ui); P.ui = setTimeout(() => n.classList.remove('on'), ms || 4500); }
 function hideUI() { $('#pInfo').classList.remove('on'); $('#pBar').classList.remove('on'); }
 function busy(on) { $('#busy').classList.toggle('on', !!on); }
-function fail(msg) { busy(false); const e = $('#pErr'); e.innerHTML = ''; e.append(h('div', null, 'This stream couldn’t be played.'), h('small', null, (msg ? msg + ' · ' : '') + 'Press Back to return' + (P.type === 'live' ? ', or ▲▼ to try another channel.' : '.'))); e.classList.add('on'); }
+function fail(msg) { busy(false); const e = $('#pErr'); e.innerHTML = ''; e.append(h('div', null, 'This stream couldn’t be played.'), h('small', null, (msg ? msg + ' \u00b7 ' : '') + (isNative() ? 'OK = open in VLC  \u00b7  ' : '') + 'Back to return' + (P.type === 'live' ? '  \u00b7  \u25b2\u25bc other channel' : ''))); e.classList.add('on'); }
 function destroyMedia() { const v = pv(); if (P.hls) { try { P.hls.destroy(); } catch (e) {} P.hls = null; } try { v.pause(); } catch (e) {} v.removeAttribute('src'); try { v.load(); } catch (e) {} }
 function attach(url, startAt) {
   destroyMedia(); const v = pv(); $('#pErr').classList.remove('on'); busy(true); P.retry = 0; P.resume = startAt || 0;
@@ -565,8 +582,24 @@ function tune() {
     const nx = p[p.indexOf(n) + 1]; if (nx) nxt.textContent = 'Next: ' + hhmm(nx.start) + '  ' + nx.title;
   });
 }
-function playLive(list, idx) { P.type = 'live'; P.list = list; P.idx = idx; P.queue = null; tune(); }
-function playVod(rec, queue, qi) {
+const isNative = () => !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+function extPkg() { if (!isNative() || !S.opts || S.opts.player === 'builtin') return null; return S.opts.player === 'vlc' ? 'org.videolan.vlc' : ''; }
+let EP = null;
+async function openExternal(url, title, posMs, pkg) {
+  if (!isNative()) { toast('External players only work in the Fire TV app'); return false; }
+  try {
+    EP = EP || window.Capacitor.registerPlugin('ExternalPlayer');
+    const r = await EP.open({ url, title: title || '', pkg: pkg || '', positionMs: posMs || 0 });
+    if (r && r.launched === false) { toast(pkg === 'org.videolan.vlc' ? 'VLC isn\u2019t installed \u2014 get it from the Fire TV app store' : 'No player app found'); return false; }
+    return true;
+  } catch (e) { toast('Couldn\u2019t open the player'); return false; }
+}
+function playLive(list, idx) {
+  const pkg = extPkg();
+  if (pkg != null) { const c = list[idx]; if (c) openExternal(api.liveExt(c.stream_id), c.name, 0, pkg); return; } P.type = 'live'; P.list = list; P.idx = idx; P.queue = null; tune(); }
+function playVod(rec, queue, qi, force) {
+  const pkg = force === 'vlc' ? (isNative() ? 'org.videolan.vlc' : null) : extPkg();
+  if (pkg != null) { const pr0 = S.prog[rec.key]; openExternal(rec.url, rec.sub || rec.title, pr0 && pr0.t > 10 ? Math.floor(pr0.t * 1000) : 0, pkg); return; }
   P.type = 'vod'; P.item = rec; P.queue = queue || null; P.qi = qi || 0; openPlayer();
   const pr = S.prog[rec.key]; attach(rec.url, pr && pr.t > 10 ? pr.t : 0);
   const bar = $('#pBar'); bar.innerHTML = '';
@@ -588,7 +621,15 @@ function saveProgress(force) {
 function seek(d) { const v = pv(); if (v.duration) v.currentTime = Math.max(0, Math.min(v.duration - 1, v.currentTime + d)); }
 function playerKey(k) {
   const v = pv();
-  if ($('#pErr').classList.contains('on') && k === 'back') { closePlayer(); return; }
+  if ($('#pErr').classList.contains('on')) {
+    if (k === 'back') { closePlayer(); return; }
+    if (k === 'ok' && isNative()) {
+      const live = P.type === 'live', ch = P.list[P.idx], it = P.item;
+      const url = live ? api.liveExt(ch.stream_id) : it && it.url, title = live ? ch.name : it && (it.sub || it.title);
+      const pkg = extPkg() != null ? extPkg() : 'org.videolan.vlc';
+      closePlayer(); if (url) openExternal(url, title, 0, pkg); return;
+    }
+  }
   if (P.type === 'live') {
     if (k === 'up' || k === 'chup') { P.idx = (P.idx - 1 + P.list.length) % P.list.length; tune(); }
     else if (k === 'down' || k === 'chdn') { P.idx = (P.idx + 1) % P.list.length; tune(); }

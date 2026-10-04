@@ -12,6 +12,12 @@ It is **just a player**: users enter their own server, username and password. No
 - Remote-first: D-pad navigation, Back, Menu (☰) to favourite, channel up/down, media keys
 - In the live player: ▲▼ change channel · ◀ channel list · ▶ favourite · OK info
 
+## Playing in VLC
+Settings → **Player** lets you choose Built-in, VLC, or "Choose app" for live TV, movies and episodes.
+Movie pages also have a **Play in VLC** button. If the built-in player can't play a stream, press OK on the error
+screen to open it in VLC. Install VLC from the Fire TV app store first. Live streams are sent to VLC as `.ts`
+when your provider allows it (falls back to `.m3u8`).
+
 ## Get the APK (no Android Studio needed)
 1. Push this folder to a GitHub repo (branch `main`).
 2. The **Build Fire TV APK** workflow runs automatically (Actions tab) and publishes `clearview.apk` to the **latest** release.
