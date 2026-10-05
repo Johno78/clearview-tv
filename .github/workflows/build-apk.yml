@@ -70,6 +70,7 @@ jobs:
         env:
           KS_PASS: ${{ secrets.KEYSTORE_PASSWORD }}
         run: |
+          export KS_PASS="$(printf %s "$KS_PASS" | tr -d '[:space:]')"
           BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
           IN=$(ls android/app/build/outputs/apk/release/*.apk | head -1)
           "$BT/zipalign" -p -f 4 "$IN" "$RUNNER_TEMP/aligned.apk"
