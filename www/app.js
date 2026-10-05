@@ -651,9 +651,9 @@ async function openExternal(url, title, posMs, pkg) {
   try {
     EP = EP || window.Capacitor.registerPlugin('ExternalPlayer');
     const r = await EP.open({ url, title: title || '', pkg: pkg || '', positionMs: posMs || 0 });
-    if (r && r.launched === false) { toast(pkg === 'org.videolan.vlc' ? 'VLC isn\u2019t installed \u2014 get it from the Fire TV app store' : 'No player app found'); return false; }
+    if (r && r.launched === false) { toast('Couldn\u2019t open VLC' + (r.reason ? ' (' + String(r.reason).slice(0, 80) + ')' : '')); return false; }
     return true;
-  } catch (e) { toast('Couldn\u2019t open the player'); return false; }
+  } catch (e) { toast('Couldn\u2019t open the player (' + String((e && e.message) || e).slice(0, 80) + ')'); return false; }
 }
 function playLive(list, idx) {
   const pkg = extPkg();

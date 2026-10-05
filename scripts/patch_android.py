@@ -29,6 +29,8 @@ if "usesCleartextTraffic" not in x:
     x = x.replace("<application", '<application android:usesCleartextTraffic="true"', 1)
 # landscape only, handle remote/keyboard config changes
 x = re.sub(r'(<activity\b)', r'\1 android:screenOrientation="sensorLandscape"', x, count=1) if "screenOrientation" not in x else x
+if "<queries>" not in x:
+    x = x.replace("<application", '<queries><package android:name="org.videolan.vlc" /><intent><action android:name="android.intent.action.VIEW" /><data android:mimeType="video/*" /></intent></queries>\n    <application', 1)
 manifest.write_text(x)
 
 banner = root / "resources/banner.png"
@@ -76,22 +78,44 @@ public class ExternalPlayerPlugin extends Plugin {
         }
 
         JSObject ret = new JSObject();
-        try {
-            if (pkg != null && !pkg.isEmpty()) {
-                i.setPackage(pkg);
-                getActivity().startActivity(i);
-            } else {
-                getActivity().startActivity(Intent.createChooser(i, "Play with"));
+        String err = "";
+        boolean hasPkg = pkg != null && !pkg.isEmpty();
+        if (!hasPkg) {
+            try {
+                Intent c = Intent.createChooser(i, "Play with");
+                c.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                getActivity().startActivity(c);
+                ret.put("launched", true);
+                call.resolve(ret);
+            } catch (Exception e) {
+                call.reject("Could not open player: " + e.getMessage());
             }
-            ret.put("launched", true);
-            call.resolve(ret);
-        } catch (ActivityNotFoundException e) {
-            ret.put("launched", false);
-            ret.put("reason", "not_installed");
-            call.resolve(ret);
-        } catch (Exception e) {
-            call.reject("Could not open player: " + e.getMessage());
+            return;
         }
+        // Try several ways of reaching the player app; VLC builds differ.
+        Intent[] tries = new Intent[4];
+        Intent a = new Intent(i); a.setPackage(pkg); tries[0] = a;
+        Intent b = new Intent(Intent.ACTION_VIEW, Uri.parse(url)); b.setPackage(pkg); b.putExtra("title", title); tries[1] = b;
+        Intent c2 = new Intent(Intent.ACTION_VIEW); c2.setDataAndType(Uri.parse(url), "video/*");
+        c2.setClassName(pkg, "org.videolan.vlc.gui.video.VideoPlayerActivity"); c2.putExtra("title", title);
+        if (pos != null && pos > 0) c2.putExtra("position", (long) pos);
+        tries[2] = c2;
+        tries[3] = getActivity().getPackageManager().getLaunchIntentForPackage(pkg);
+        boolean ok = false;
+        for (Intent t : tries) {
+            if (t == null) continue;
+            try {
+                t.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                getActivity().startActivity(t);
+                ok = true;
+                break;
+            } catch (Exception e) {
+                err = e.getClass().getSimpleName() + ": " + e.getMessage();
+            }
+        }
+        ret.put("launched", ok);
+        if (!ok) ret.put("reason", err);
+        call.resolve(ret);
     }
 }
 ''')
