@@ -46,6 +46,8 @@ if icons.exists():
         if d.is_dir():
             (res / d.name).mkdir(parents=True, exist_ok=True)
             for f in d.iterdir():
+                for old in (res / d.name).glob(f.stem + ".*"):
+                    old.unlink()
                 shutil.copy(f, res / d.name / f.name)
     shutil.rmtree(res / "mipmap-anydpi-v26", ignore_errors=True)
     print("launcher icons replaced")
