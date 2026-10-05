@@ -2,7 +2,7 @@
   "name": "clearview-tv",
   "version": "0.1.0",
   "private": true,
-  "description": "Clearview - an Xtream Codes player for Fire TV / Android TV",
+  "description": "Clearview - a media player for Fire TV / Android TV",
   "scripts": {
     "prep": "node scripts/prep.js",
     "android:add": "npx cap add android && python3 scripts/patch_android.py",

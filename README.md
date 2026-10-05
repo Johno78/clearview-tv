@@ -1,10 +1,10 @@
 # Clearview
 
-An Xtream Codes player for Fire TV / Android TV, with a glassy, tile-based interface inspired by modern set-top boxes.
+A media player for Fire TV / Android TV with a glassy, tile-based interface. Sign in with your own service account; no content is included.
 It is **just a player**: users enter their own server, username and password. No channels or content are included.
 
 ## Features
-- Xtream Codes sign-in (server / username / password) + a built-in demo mode
+- Sign-in with your own account (server / username / password; Xtream Codes compatible) + a built-in demo mode
 - Live TV with category rail, search, now-playing info, favourites
 - TV guide (EPG grid) built from `get_short_epg`
 - Movies and Series with details, seasons/episodes, auto-play next episode
@@ -26,7 +26,7 @@ when your provider allows it (falls back to `.m3u8`).
    (Settings → My Fire TV → Developer options → Install unknown apps → Downloader.)
 
 ## Try it in a browser
-Open `www/index.html` and choose **Try the demo**. (Real Xtream servers won't work from a browser tab:
+Open `www/index.html` and choose **Try the demo**. (Real servers won't work from a browser tab:
 they're usually plain http and don't send CORS headers. Inside the APK, Capacitor's native HTTP layer is used instead.)
 
 ## Dev

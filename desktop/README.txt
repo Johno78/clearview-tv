@@ -9,6 +9,6 @@ Keys: arrow keys move, Enter selects, Esc / Backspace goes back.
 In the live player: Up/Down change channel, Left = channel list, Right = favourite.
 Mouse clicking works too. Chrome or Edge are best.
 
-Why the helper? Browsers refuse to talk to most IPTV servers directly. The helper runs only on
+Why the helper? Browsers refuse to talk to most media servers directly. The helper runs only on
 your own computer (127.0.0.1) and passes requests along. Nothing is sent anywhere else.
 Demo mode needs no login: just click "Try the demo".

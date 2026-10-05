@@ -382,7 +382,7 @@ views.login = async (v) => {
   v.append(h('div', { class: 'card' },
     h('div', { class: 'brand', style: 'margin-bottom:1.6rem' }, h('i'), h('b', null, 'clearview')),
     h('h1', null, 'Sign in'),
-    h('p', { class: 'sub' }, 'Enter the Xtream Codes details from your provider. Clearview is just a player — it doesn’t supply any channels or content.'),
+    h('p', { class: 'sub' }, 'Enter the server address, username and password from your service provider. Clearview is only a media player — it doesn’t supply any channels or content.'),
     h('label', null, 'Server address'), server, h('label', null, 'Username'), user, h('label', null, 'Password'), pass, err,
     h('div', { class: 'acts' },
       h('div', { class: 'f btn pri', tabindex: 0, 'data-primary': '1', onclick: submit }, 'Sign in'),
