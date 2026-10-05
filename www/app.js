@@ -600,13 +600,13 @@ views.settings = async (v) => {
 };
 
 /* ============================== player ============================== */
-const P = { open: false, type: null, list: [], idx: 0, drawer: false, hls: null, item: null, queue: null, qi: 0, saveT: 0, ui: null, ret: null, retry: 0, resume: 0 };
+const P = { open: false, type: null, list: [], idx: 0, drawer: false, hls: null, item: null, queue: null, qi: 0, saveT: 0, ui: null, ret: null, retry: 0, resume: 0, wd: 0, wdId: 0 };
 const pv = () => $('#video');
 function showUI(el, ms) { const n = $(el); n.classList.add('on'); clearTimeout(P.ui); P.ui = setTimeout(() => n.classList.remove('on'), ms || 4500); }
 function hideUI() { $('#pInfo').classList.remove('on'); $('#pBar').classList.remove('on'); }
 function busy(on) { $('#busy').classList.toggle('on', !!on); }
 function fail(msg) { busy(false); const e = $('#pErr'); e.innerHTML = ''; e.append(h('div', null, 'This stream couldn’t be played.'), h('small', null, (msg ? msg + ' \u00b7 ' : '') + (isNative() ? 'OK = open in VLC  \u00b7  ' : '') + 'Back to return' + (P.type === 'live' ? '  \u00b7  \u25b2\u25bc other channel' : ''))); e.classList.add('on'); }
-function destroyMedia() { const v = pv(); if (P.hls) { try { P.hls.destroy(); } catch (e) {} P.hls = null; } try { v.pause(); } catch (e) {} v.removeAttribute('src'); try { v.load(); } catch (e) {} }
+function destroyMedia() { clearTimeout(P.wd); P.wdId++; const v = pv(); if (P.hls) { try { P.hls.destroy(); } catch (e) {} P.hls = null; } try { v.pause(); } catch (e) {} v.removeAttribute('src'); try { v.load(); } catch (e) {} }
 function attach(url, startAt) {
   destroyMedia(); const v = pv(); $('#pErr').classList.remove('on'); busy(true); P.retry = 0; P.resume = startAt || 0;
   if (/\.m3u8(\?|$)/i.test(url) && window.Hls && Hls.isSupported()) {
@@ -615,6 +615,12 @@ function attach(url, startAt) {
     hls.loadSource(url); hls.attachMedia(v);
   } else v.src = url;
   const p = v.play(); if (p && p.catch) p.catch(() => {});
+  clearTimeout(P.wd); const t0 = ++P.wdId;
+  P.wd = setTimeout(() => {
+    if (t0 !== P.wdId || !P.open || v.readyState >= 3 || (!v.paused && v.currentTime > 0)) return;
+    if (isNative() && P.type === 'live') { const ch = P.list[P.idx]; if (ch) { closePlayer(); toast('Built-in player is stuck \u2014 opening in VLC'); openExternal(api.liveExt(ch.stream_id), ch.name, 0, 'org.videolan.vlc'); return; } }
+    fail('Timed out');
+  }, 12000);
 }
 function openPlayer() { if (!P.open) { P.ret = document.activeElement; P.open = true; $('#player').classList.add('on'); } }
 function closePlayer() {
