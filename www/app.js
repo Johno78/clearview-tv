@@ -127,6 +127,7 @@ const demo = (() => {
 })();
 
 /* ============================== xtream api ============================== */
+const wrap = u => (window.CV_PROXY && !S.demo) ? '/p/' + encodeURIComponent(u) : u;
 const api = {
   base() { let s = (S.creds && S.creds.server || '').trim(); if (!s) return ''; if (!/^https?:\/\//i.test(s)) s = 'http://' + s; return s.replace(/\/+$/, ''); },
   cred() { return encodeURIComponent(S.creds.user) + '/' + encodeURIComponent(S.creds.pass); },
@@ -138,19 +139,19 @@ const api = {
     const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
     const to = setTimeout(() => ctl && ctl.abort(), action ? 90000 : 20000);
     try {
-      const r = await fetch(this.base() + '/player_api.php?' + q.toString(), ctl ? { signal: ctl.signal } : {});
+      const r = await fetch(wrap(this.base() + '/player_api.php?' + q.toString()), ctl ? { signal: ctl.signal } : {});
       if (!r.ok) throw new Error('Server replied ' + r.status);
       return await r.json();
     } finally { clearTimeout(to); }
   },
-  live(id) { return S.demo ? DEMO_HLS : this.base() + '/live/' + this.cred() + '/' + id + '.m3u8'; },
+  live(id) { return S.demo ? DEMO_HLS : wrap(this.base() + '/live/' + this.cred() + '/' + id + '.m3u8'); },
   liveExt(id) {
     if (S.demo) return DEMO_HLS;
     const f = S.info && S.info.allowed_output_formats; const ts = !Array.isArray(f) || !f.length || f.indexOf('ts') >= 0;
     return this.base() + '/live/' + this.cred() + '/' + id + (ts ? '.ts' : '.m3u8');
   },
-  movie(id, ext) { return S.demo ? DEMO_HLS : this.base() + '/movie/' + this.cred() + '/' + id + '.' + (ext || 'mp4'); },
-  episode(id, ext) { return S.demo ? DEMO_HLS : this.base() + '/series/' + this.cred() + '/' + id + '.' + (ext || 'mp4'); }
+  movie(id, ext) { return S.demo ? DEMO_HLS : wrap(this.base() + '/movie/' + this.cred() + '/' + id + '.' + (ext || 'mp4')); },
+  episode(id, ext) { return S.demo ? DEMO_HLS : wrap(this.base() + '/series/' + this.cred() + '/' + id + '.' + (ext || 'mp4')); }
 };
 const epgCache = new Map();
 async function getEpg(id, limit) {
