@@ -50,7 +50,7 @@ const S = {
   creds: LS.get('creds', null), demo: LS.get('demo', false), info: null,
   d: { liveCats: [], live: [], vodCats: [], vod: [], serCats: [], series: [] },
   favs: LS.get('favs', { live: [], vod: [], series: [] }),
-  prog: LS.get('prog', {}), opts: Object.assign({ player: 'builtin' }, LS.get('opts', {})), stack: [], cur: null
+  prog: LS.get('prog', {}), opts: Object.assign({ player: 'builtin', theme: 'aurora' }, LS.get('opts', {})), stack: [], cur: null
 };
 const favKey = (t, id) => t + ':' + id;
 const isFav = (t, id) => S.favs[t].indexOf(String(id)) >= 0;
@@ -559,6 +559,17 @@ views.favs = async (v) => {
   if (!ch.length && !mv.length && !sr.length) v.append(h('div', { class: 'empty' }, 'Nothing saved yet.', h('br'), 'Highlight a channel, movie or series and press the Menu button (☰), or use “Add to favourites” on its page.'));
 };
 
+const THEMES = [['aurora', 'Aurora'], ['ocean', 'Ocean'], ['sunset', 'Sunset'], ['emerald', 'Emerald'], ['midnight', 'Midnight'], ['classic', 'Classic blue']];
+function applyTheme(id) { document.documentElement.setAttribute('data-theme', THEMES.some(t => t[0] === id) ? id : 'aurora'); }
+function themePicker() {
+  const box = h('div', { class: 'chips', style: 'padding-left:0;flex-wrap:wrap' });
+  THEMES.forEach(([id, label]) => box.append(h('div', { class: 'f chip swatch' + (S.opts.theme === id ? ' on' : ''), tabindex: 0, 'data-id': id, onclick: () => {
+    S.opts.theme = id; LS.set('opts', S.opts); applyTheme(id); $$('.chip', box).forEach(c => c.classList.toggle('on', c.dataset.id === id));
+  } }, h('i', { style: '--sw:' + getComputedStyle(document.documentElement).getPropertyValue('--sw') }), label)));
+  // each swatch previews its own gradient
+  $$('.chip', box).forEach(c => { const t = c.dataset.id; const tmp = document.createElement('div'); tmp.setAttribute('data-theme', t); document.body.append(tmp); const sw = getComputedStyle(tmp).getPropertyValue('--sw'); tmp.remove(); c.firstChild.style.setProperty('--sw', sw); });
+  return h('div', null, h('label', { style: 'display:block;color:var(--dim);font-size:1.15rem;margin:1.4rem 0 .2rem' }, 'Background theme'), box);
+}
 function playerPicker() {
   const opts = [['builtin', 'Built-in'], ['vlc', 'VLC'], ['any', 'Choose app']];
   const box = h('div', { class: 'chips', style: 'padding-left:0' });
@@ -577,6 +588,7 @@ views.settings = async (v) => {
       h('span', null, 'Status'), h('span', null, i.status || '—'), h('span', null, 'Expires'), h('span', null, exp),
       h('span', null, 'Connections'), h('span', null, (i.active_cons || 0) + ' of ' + (i.max_connections || '?') + ' in use'),
       h('span', null, 'Library'), h('span', null, S.d.live.length + ' channels · ' + S.d.vod.length + ' movies · ' + S.d.series.length + ' series')),
+    themePicker(),
     playerPicker(),
     h('div', { class: 'acts' },
       h('div', { class: 'f btn pri', tabindex: 0, 'data-autofocus': '1', onclick: async () => { boot('Refreshing library…'); epgCache.clear(); await loadLibrary(bootMsg); bootOff(); go('home', {}, { reset: true }); } }, 'Refresh library'),
@@ -725,7 +737,7 @@ async function enter() {
   await render('home', {});
 }
 async function start() {
-  buildTabs(); wireVideo(); tickClock();
+  applyTheme(S.opts.theme); buildTabs(); wireVideo(); tickClock();
   $('#hs').addEventListener('keydown', e => { if (e.key === 'Enter') { const q = e.target.value.trim(); if (q) { e.target.blur(); e.target.value = ''; go('search', { q }); } } }); setInterval(tickClock, 20000);
   if (S.creds) {
     boot('Signing in…');

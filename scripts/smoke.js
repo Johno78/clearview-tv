@@ -79,9 +79,11 @@ const check = (name, cond, extra) => { console.log((cond ? 'PASS ' : 'FAIL ') + 
   const btn = [...w.document.querySelectorAll('.btn')].find(b => /Play in VLC/.test(b.textContent)); btn.click(); await sleep(100);
   check('Play in VLC button forces VLC', calls.length === 2 && !cv.P.open);
   await cv.go('settings', {}, { reset: true }); await sleep(100);
-  check('settings has player picker', q('.chip') === 3);
-  w.document.querySelectorAll('.chip')[1].click();
+  check('settings has theme + player pickers', q('.chip.swatch') === 6 && q('.chip') === 9, q('.chip.swatch') + ' themes / ' + q('.chip') + ' chips');
+  w.document.querySelector('.chip[data-id="vlc"]').click();
   check('picker saves choice', cv.S.opts.player === 'vlc' && JSON.parse(w.localStorage.getItem('cv.opts')).player === 'vlc');
+  w.document.querySelector('.chip.swatch[data-id="sunset"]').click();
+  check('theme applies + persists', w.document.documentElement.getAttribute('data-theme') === 'sunset' && JSON.parse(w.localStorage.getItem('cv.opts')).theme === 'sunset');
   // sign out path renders login
   await cv.go('login', {}, { reset: true }); await sleep(100);
   check('login form', q('.input') === 3);
