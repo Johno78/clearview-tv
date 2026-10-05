@@ -649,8 +649,13 @@ let EP = null;
 async function openExternal(url, title, posMs, pkg) {
   if (!isNative()) { toast('External players only work in the Fire TV app'); return false; }
   try {
-    EP = EP || window.Capacitor.registerPlugin('ExternalPlayer');
-    const r = await EP.open({ url, title: title || '', pkg: pkg || '', positionMs: posMs || 0 });
+    const C = window.Capacitor, args = { url, title: title || '', pkg: pkg || '', positionMs: posMs || 0 };
+    let r;
+    if (C.Plugins && C.Plugins.ExternalPlayer && C.Plugins.ExternalPlayer.open) r = await C.Plugins.ExternalPlayer.open(args);
+    else if (typeof C.registerPlugin === 'function') { EP = EP || C.registerPlugin('ExternalPlayer'); r = await EP.open(args); }
+    else if (typeof C.nativePromise === 'function') r = await C.nativePromise('ExternalPlayer', 'open', args);
+    else if (typeof C.toNative === 'function') r = await new Promise((res, rej) => C.toNative('ExternalPlayer', 'open', args, { resolve: res, reject: rej }));
+    else throw new Error('no native bridge');
     if (r && r.launched === false) { toast('Couldn\u2019t open VLC' + (r.reason ? ' (' + String(r.reason).slice(0, 80) + ')' : '')); return false; }
     return true;
   } catch (e) { toast('Couldn\u2019t open the player (' + String((e && e.message) || e).slice(0, 80) + ')'); return false; }
