@@ -30,6 +30,9 @@ a{color:#fff}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(18rem,1fr));gap:1.2rem;margin-top:2rem}
 .grid .card{margin-top:0}
 .note{font-size:.95rem;color:#dbe6ff}
+.support{display:none;text-align:center}
+.support a.tip{display:inline-block;margin-top:.4rem;padding:.7rem 1.5rem;border-radius:3rem;border:1px solid rgba(255,255,255,.5);text-decoration:none;font-weight:600}
+.support a.tip:hover,.support a.tip:focus-visible{background:rgba(255,255,255,.18);outline:2px solid #fff}
 footer{margin-top:2.5rem;font-size:.9rem;color:#cfdcff}
 </style>
 </head>
@@ -79,7 +82,18 @@ footer{margin-top:2.5rem;font-size:.9rem;color:#cfdcff}
     </ol>
   </section>
 
+  <section class="card support" id="support">
+    <h2>Enjoying Clearview?</h2>
+    <p class="note">It&rsquo;s free and made in spare time. If it&rsquo;s useful, you can chip in towards keeping it going. Totally optional.</p>
+    <a class="tip" id="tip" href="#" target="_blank" rel="noopener">Support the app</a>
+  </section>
+
   <footer>Clearview is an independent project and isn&rsquo;t affiliated with any TV provider or streaming service. &middot; <a href="https://github.com/Johno78/clearview-tv">Source on GitHub</a></footer>
 </main>
+<script>
+/* Put your Ko-fi / Buy Me a Coffee / PayPal.me link between the quotes. Leave it empty to hide the section. */
+var SUPPORT_URL = "";
+if (SUPPORT_URL) { document.getElementById("tip").href = SUPPORT_URL; document.getElementById("support").style.display = "block"; }
+</script>
 </body>
 </html>
