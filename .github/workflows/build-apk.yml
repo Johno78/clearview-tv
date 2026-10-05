@@ -3,6 +3,10 @@ name: Build Fire TV APK
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "desktop/**"
+      - "README.md"
   workflow_dispatch:
 
 permissions:
@@ -30,16 +34,50 @@ jobs:
         run: npm run prep
 
       - name: Create and patch the Android project
+        env:
+          VERSION_CODE: ${{ github.run_number }}
         run: npm run android:add
 
       - name: Sync web assets
         run: npx cap sync android
 
-      - name: Build debug APK
+      - name: Check for a release signing key
+        id: key
+        env:
+          KS: ${{ secrets.KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KS" ]; then
+            echo "$KS" | base64 -d > "$RUNNER_TEMP/release.jks"
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+            echo "Release signing key found."
+          else
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "No signing key set - building a debug-signed APK (updates will need an uninstall first)."
+          fi
+
+      - name: Build debug APK (no signing key)
+        if: steps.key.outputs.signed != 'true'
         working-directory: android
         run: ./gradlew assembleDebug --no-daemon
 
-      - name: Name the APK
+      - name: Build release APK (signing key present)
+        if: steps.key.outputs.signed == 'true'
+        working-directory: android
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: Align and sign release APK
+        if: steps.key.outputs.signed == 'true'
+        env:
+          KS_PASS: ${{ secrets.KEYSTORE_PASSWORD }}
+        run: |
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          IN=$(ls android/app/build/outputs/apk/release/*.apk | head -1)
+          "$BT/zipalign" -p -f 4 "$IN" "$RUNNER_TEMP/aligned.apk"
+          "$BT/apksigner" sign --ks "$RUNNER_TEMP/release.jks" --ks-pass env:KS_PASS --key-pass env:KS_PASS --out clearview.apk "$RUNNER_TEMP/aligned.apk"
+          "$BT/apksigner" verify --print-certs clearview.apk | head -3
+
+      - name: Name the debug APK
+        if: steps.key.outputs.signed != 'true'
         run: cp android/app/build/outputs/apk/debug/app-debug.apk clearview.apk
 
       - uses: actions/upload-artifact@v4
@@ -54,4 +92,4 @@ jobs:
           gh release delete latest --yes --cleanup-tag || true
           gh release create latest clearview.apk \
             --title "Clearview (latest build)" \
-            --notes "Sideload on Fire TV with the Downloader app. Direct link: https://github.com/${{ github.repository }}/releases/download/latest/clearview.apk"
+            --notes "Download link: https://github.com/${{ github.repository }}/releases/download/latest/clearview.apk"

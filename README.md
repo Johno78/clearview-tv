@@ -41,3 +41,11 @@ node scripts/smoke.js # headless smoke test (demo mode)
   raw `.ts` streams may not play in a WebView; the upgrade path is a native ExoPlayer plugin.
 - EPG is per-channel (`get_short_epg`), not a full XMLTV import.
 - Debug-signed APK (fine for sideloading).
+
+## Sharing the app
+- Download page: `docs/index.html` (publish with Settings → Pages → Deploy from branch → `main` / `/docs`).
+- Direct link: `https://github.com/Johno78/clearview-tv/releases/download/latest/clearview.apk`
+- **Signing key (so people can update without uninstalling):** add two repository secrets under
+  Settings → Secrets and variables → Actions: `KEYSTORE_B64` (base64 of your `.jks`) and `KEYSTORE_PASSWORD`.
+  Without them the build falls back to a debug-signed APK. Keep a backup of the keystore: if it's lost, existing
+  installs can't be updated.

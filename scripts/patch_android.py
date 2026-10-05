@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Make the generated Capacitor Android project Fire TV / Android TV friendly."""
-import re, pathlib, shutil, sys
+import os, re, pathlib, shutil, sys
 
 root = pathlib.Path(__file__).resolve().parent.parent
 manifest = root / "android/app/src/main/AndroidManifest.xml"
@@ -111,3 +111,13 @@ public class MainActivity extends BridgeActivity {
 }
 ''')
 print("external player plugin written")
+
+# ---- version: Android only lets an app update if versionCode goes up, so use the CI run number ----
+vc = os.environ.get("VERSION_CODE")
+gradle = root / "android/app/build.gradle"
+if vc and vc.isdigit() and gradle.exists():
+    g = gradle.read_text()
+    g = re.sub(r"versionCode\s+\d+", "versionCode " + vc, g, count=1)
+    g = re.sub(r'versionName\s+"[^"]*"', 'versionName "0.1.' + vc + '"', g, count=1)
+    gradle.write_text(g)
+    print("versionCode", vc)
