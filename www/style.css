@@ -22,7 +22,7 @@ body{background:var(--grad);background-attachment:fixed}
 #app{display:flex;flex-direction:column;height:100vh}
 #top{height:6rem;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 4rem;position:relative;z-index:5}
 .brand{display:flex;align-items:center;gap:.7rem;font-size:1.7rem;letter-spacing:.02em}
-.brand i{width:1.5rem;height:1.5rem;border-radius:50%;background:conic-gradient(from 200deg,var(--a1),var(--a2),#18e0c0,var(--a1))}
+.brand i{width:1.5rem;height:1.5rem;border-radius:50%;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='white' d='M9 6.5v11l9-5.5z'/%3E%3C/svg%3E") center/58% no-repeat,conic-gradient(from 200deg,var(--a1),var(--a2),#18e0c0,var(--a1))}
 .brand b{font-weight:500}
 .brand.big{font-size:4rem}.brand.big i{width:3.6rem;height:3.6rem}
 #tabs{display:flex;gap:.4rem;padding:.35rem;border-radius:3rem;background:var(--glass);border:1px solid var(--line);

@@ -38,6 +38,17 @@ dest = root / "android/app/src/main/res/drawable"
 dest.mkdir(parents=True, exist_ok=True)
 if banner.exists():
     shutil.copy(banner, dest / "banner.png")
+# launcher icons (match the Clearview orb logo): replace Capacitor's defaults, drop the adaptive-icon xml so these are used
+res = root / "android/app/src/main/res"
+icons = root / "resources/android"
+if icons.exists():
+    for d in icons.iterdir():
+        if d.is_dir():
+            (res / d.name).mkdir(parents=True, exist_ok=True)
+            for f in d.iterdir():
+                shutil.copy(f, res / d.name / f.name)
+    shutil.rmtree(res / "mipmap-anydpi-v26", ignore_errors=True)
+    print("launcher icons replaced")
 print("patched", manifest)
 
 # ---- External player plugin (hands streams to VLC / any video app) ----
