@@ -23,7 +23,13 @@ const check = (name, cond, extra) => { console.log((cond ? 'PASS ' : 'FAIL ') + 
   check('boots into home', cv.S.cur && cv.S.cur.name === 'home');
   check('library loaded', cv.S.d.live.length > 20 && cv.S.d.vod.length === 60 && cv.S.d.series.length === 30, cv.S.d.live.length + ' ch / ' + cv.S.d.vod.length + ' mv / ' + cv.S.d.series.length + ' sr');
   check('unique stream ids', new Set(cv.S.d.live.map(c => c.stream_id)).size === cv.S.d.live.length);
-  check('home has hero + shelves', q('.hero') === 1 && q('.shelf') >= 3, q('.shelf') + ' shelves');
+  check('home hub: 8 tiles + featured + top picks', q('.hubgrid .hub') === 9 && q('.hub.feat') === 1 && q('.shelf') >= 2, q('.hubgrid .hub') + ' hub tiles / ' + q('.shelf') + ' shelves');
+  check('header shows search on home', w.document.getElementById('top').classList.contains('home'));
+  await cv.go('search', { q: 'harbour' }, { reset: true }); await sleep(200);
+  check('search finds movies', q('.shelf') >= 1 && q('.poster') > 0 && !w.document.getElementById('top').classList.contains('home'), q('.poster') + ' posters');
+  await cv.go('search', { q: 'zzzzqq' }, { reset: true }); await sleep(100);
+  check('search empty state', q('.empty') === 1);
+  await cv.go('home', {}, { reset: true }); await sleep(200);
   for (const [name, sel] of [['live', '.row-ch'], ['movies', '.poster'], ['series', '.poster'], ['guide', '.grow'], ['favs', '.empty, .shelf'], ['settings', '.card']]) {
     await cv.go(name, {}, { reset: true }); await sleep(200);
     check('view: ' + name, q(sel) > 0, q(sel) + ' items');

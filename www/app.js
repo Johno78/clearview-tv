@@ -195,6 +195,7 @@ function focusIndex() { const a = document.activeElement; if (!a) return null; c
 async function render(name, params, restore) {
   const v = $('#view'); v.innerHTML = ''; v.scrollTop = 0;
   S.cur = { name, params };
+  $('#top').classList.toggle('home', name === 'home');
   $$('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === name || (name === 'vod' && t.dataset.tab === 'movies') || (name === 'seriesInfo' && t.dataset.tab === 'series')));
   try { await views[name](v, params || {}); } catch (e) { v.append(h('div', { class: 'empty' }, 'Something went wrong loading this screen.', h('br'), String(e && e.message || e))); console.error(e); }
   focusIn(v, restore);
@@ -265,7 +266,10 @@ document.addEventListener('keydown', e => {
   if (cap && cap.addListener) cap.addListener('backButton', () => goBack());
 })();
 
-function tickClock() { const d = new Date(); $('#clock').textContent = pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+function tickClock() {
+  const d = new Date(); let hr = d.getHours(); const ap = hr >= 12 ? 'pm' : 'am'; hr = hr % 12 || 12;
+  $('#clock').textContent = hr + '.' + pad(d.getMinutes()) + ap + '  ' + ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()] + ' ' + pad(d.getDate()) + '/' + pad(d.getMonth() + 1);
+}
 
 /* ============================== tiles ============================== */
 function chunked(box, items, mk, size) {
@@ -385,32 +389,67 @@ views.login = async (v) => {
       h('div', { class: 'f btn', tabindex: 0, onclick: async () => { S.demo = true; S.creds = { server: 'demo', user: 'demo', pass: 'demo' }; LS.set('demo', true); S.info = (await api.call('')).user_info; boot('Loading demo…'); await enter(); } }, 'Try the demo'))));
 };
 
+const SVG = str => { const d = document.createElement('div'); d.innerHTML = str; return d.firstChild; };
+const ICON = {
+  star: '<svg viewBox="0 0 24 24" fill="#ffd54a"><path d="M12 2l3 6.9 7.5.7-5.7 5 1.7 7.4L12 18.1 5.5 22l1.7-7.4-5.7-5 7.5-.7z"/></svg>',
+  play: '<svg viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z"/></svg>',
+  sliders: '<svg viewBox="0 0 24 24"><g stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></g><g fill="#fff"><circle cx="9" cy="7" r="2.4"/><circle cx="15" cy="12" r="2.4"/><circle cx="8" cy="17" r="2.4"/></g></svg>'
+};
+function glyph(svg, small) { return h('div', { class: 'glyph' }, SVG(svg), small ? h('small', null, small) : null); }
+function collage(items, cols, rows, kind) {
+  const box = h('div', { class: 'collage', style: '--cols:' + cols });
+  items.slice(0, cols * rows).forEach(it => box.append(art(kind === 'ser' ? it.cover : it.stream_icon, it.name, kind === 'ch' ? 'logo' : '')));
+  return box;
+}
+function miniGuide() {
+  const rows = S.d.live.slice(0, 6);
+  if (!rows.length) return glyph(ICON.play, 'No channels yet');
+  return h('div', { class: 'mini' }, rows.map((c, i) => h('div', { class: 'mrow' + (i === 0 ? ' on' : '') }, h('b', null, c.num || i + 1), h('span', null, c.name))));
+}
 views.home = async (v) => {
   $('#top').classList.remove('hide');
   const prog = Object.values(S.prog).sort((a, b) => b.ts - a.ts);
-  const favCh = S.d.live.filter(c => isFav('live', c.stream_id));
-  const newest = S.d.vod.slice(0, 24), newSer = S.d.series.slice(0, 24);
+  const catBy = re => S.d.liveCats.find(c => re.test(c.category_name || ''));
+  const inCat = c => S.d.live.filter(x => String(x.category_id) === String(c.category_id));
+  const openCat = c => () => { LS.set('sel.live', String(c.category_id)); go('live'); };
+  const sports = catBy(/sport/i), kids = catBy(/kid|child|cartoon/i);
+  const favCount = S.favs.live.length + S.favs.vod.length + S.favs.series.length;
+  const cands = [
+    ['TV Guide', miniGuide(), () => go('guide')],
+    ['Live TV', collage(S.d.live, 3, 2, 'ch'), () => go('live')],
+    ['Movies', collage(S.d.vod, 3, 1, 'vod'), () => go('movies')],
+    ['Series', collage(S.d.series, 3, 1, 'ser'), () => go('series')],
+    ['Favourites', glyph(ICON.star, favCount + ' saved'), () => go('favs')],
+    ['Continue watching', prog[0] ? art(prog[0].cover, prog[0].title) : glyph(ICON.play, 'Nothing yet'), () => prog[0] ? resumeRec(prog[0]) : toast('Nothing to continue yet')],
+    sports && ['Sports', collage(inCat(sports), 3, 2, 'ch'), openCat(sports)],
+    kids && ['Kids', collage(inCat(kids), 3, 2, 'ch'), openCat(kids)],
+    ['Latest movies', collage(S.d.vod.slice(3), 3, 1, 'vod'), () => go('movies')]
+  ].filter(Boolean).slice(0, 7);
+  cands.push(['Settings', glyph(ICON.sliders, ''), () => go('settings')]);
+  const tiles = cands.map(([label, thumb, fn], i) => h('div', { class: 'f hub', tabindex: 0, 'data-autofocus': i === 0 ? '1' : null, onclick: fn }, h('div', { class: 'hub-img' }, thumb), h('div', { class: 'hub-cap' }, label)));
   const feat = S.d.vod.filter(x => x.stream_icon)[0] || S.d.vod[0];
-  let hero;
-  if (prog[0]) {
-    const r = prog[0];
-    hero = h('div', { class: 'hero' }, h('div', { class: 'bg', style: r.cover ? 'background-image:url("' + r.cover + '")' : 'background:linear-gradient(135deg,hsl(' + hue(r.title) + ',55%,30%),#04050d)' }),
-      h('div', { class: 'kick' }, 'Continue watching'), h('h1', null, r.title), h('div', { class: 'meta' }, (r.sub && r.sub !== r.title ? r.sub + ' · ' : '') + fmtDur(r.d - r.t) + ' left'),
-      h('div', { class: 'acts' }, h('div', { class: 'f btn pri', tabindex: 0, 'data-autofocus': '1', onclick: () => resumeRec(r) }, '▶  Resume')));
-  } else if (feat) {
-    hero = h('div', { class: 'hero' }, h('div', { class: 'bg', style: feat.stream_icon ? 'background-image:url("' + feat.stream_icon + '")' : 'background:linear-gradient(135deg,hsl(' + hue(feat.name) + ',55%,30%) 0%,hsl(' + ((hue(feat.name) + 60) % 360) + ',55%,16%) 55%,#04050d 100%)' }),
-      h('div', { class: 'kick' }, 'Featured'), h('h1', null, feat.name), h('div', { class: 'meta' }, 'Movie' + (feat.rating && +feat.rating ? ' · ★ ' + feat.rating : '')),
-      h('div', { class: 'acts' }, h('div', { class: 'f btn pri', tabindex: 0, 'data-autofocus': '1', onclick: () => go('vod', { id: feat.stream_id }) }, 'More info')));
-  } else {
-    hero = h('div', { class: 'hero', style: 'height:20rem' }, h('h1', null, 'Welcome'), h('div', { class: 'meta' }, 'Your library looks empty. Check your subscription in Settings.'),
-      h('div', { class: 'acts' }, h('div', { class: 'f btn pri', tabindex: 0, 'data-autofocus': '1', onclick: () => go('settings', {}, { reset: true }) }, 'Open settings')));
-  }
-  v.append(...[hero,
-    shelf('Continue watching', prog.slice(1, 20).map(resumeTile)),
-    shelf('Your channels', (l => l.map((c, i) => chanTile(l, i)))(favCh.slice(0, 30))),
-    shelf('Live channels', (l => l.map((c, i) => chanTile(l, i)))(S.d.live.slice(0, 16))),
-    shelf('Recently added movies', newest.map(m => posterTile(m, 'vod'))),
-    shelf('Latest series', newSer.map(s => posterTile(s, 'series')))].filter(Boolean));
+  tiles.push(feat
+    ? h('div', { class: 'f hub feat', tabindex: 0, onclick: () => go('vod', { id: feat.stream_id }) },
+        h('div', { class: 'hub-img' }, art(feat.stream_icon, feat.name), h('div', { class: 'feat-t' }, h('small', null, 'Featured'), h('b', null, feat.name))), h('div', { class: 'hub-cap' }, 'More info'))
+    : h('div', { class: 'hub feat' }, h('div', { class: 'hub-img' }, h('div', { class: 'glyph' }, h('b', null, 'Welcome'), h('small', null, 'Your library looks empty — check Settings')))));
+  const rated = S.d.vod.filter(x => x.stream_icon).sort((a, b) => (+b.rating || 0) - (+a.rating || 0)).slice(0, 14);
+  const picks = (rated.length ? rated : S.d.vod.slice(0, 14)).map(m => { const t = posterTile(m, 'vod'); t.classList.add('big'); return t; });
+  if (picks.length) picks.push(h('div', { class: 'f tile poster big more', tabindex: 0, onclick: () => go('movies') }, h('div', { class: 'morecard' }, 'MORE', h('br'), 'TOP', h('br'), 'PICKS')));
+  const favCh = S.d.live.filter(c => isFav('live', c.stream_id)).slice(0, 30);
+  v.append(...[h('div', { class: 'hubgrid' }, tiles),
+    shelf('Top picks', picks),
+    shelf('Continue watching', prog.slice(0, 20).map(resumeTile)),
+    shelf('Your channels', favCh.map((c, i) => chanTile(favCh, i))),
+    shelf('Latest series', S.d.series.slice(0, 24).map(s => posterTile(s, 'series')))].filter(Boolean));
+};
+
+views.search = async (v, { q }) => {
+  const k = String(q || '').trim().toLowerCase(); const has = i => String(i.name || '').toLowerCase().indexOf(k) >= 0;
+  const ch = S.d.live.filter(has).slice(0, 60), mv = S.d.vod.filter(has).slice(0, 60), sr = S.d.series.filter(has).slice(0, 60);
+  v.append(h('div', { class: 'sres' }, 'Results for “' + q + '”'));
+  const parts = [shelf('Channels (' + ch.length + ')', ch.map((c, i) => chanTile(ch, i))), shelf('Movies (' + mv.length + ')', mv.map(m => posterTile(m, 'vod'))), shelf('Series (' + sr.length + ')', sr.map(x => posterTile(x, 'series')))].filter(Boolean);
+  if (!parts.length) v.append(h('div', { class: 'empty' }, 'Nothing found. Try a different word.'));
+  v.append(...parts);
 };
 
 views.live = async (v) => {
@@ -686,7 +725,8 @@ async function enter() {
   await render('home', {});
 }
 async function start() {
-  buildTabs(); wireVideo(); tickClock(); setInterval(tickClock, 20000);
+  buildTabs(); wireVideo(); tickClock();
+  $('#hs').addEventListener('keydown', e => { if (e.key === 'Enter') { const q = e.target.value.trim(); if (q) { e.target.blur(); e.target.value = ''; go('search', { q }); } } }); setInterval(tickClock, 20000);
   if (S.creds) {
     boot('Signing in…');
     try {
