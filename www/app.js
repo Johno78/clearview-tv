@@ -398,7 +398,9 @@ const ICON = {
 function glyph(svg, small) { return h('div', { class: 'glyph' }, SVG(svg), small ? h('small', null, small) : null); }
 function collage(items, cols, rows, kind) {
   const box = h('div', { class: 'collage', style: '--cols:' + cols });
-  items.slice(0, cols * rows).forEach(it => box.append(art(kind === 'ser' ? it.cover : it.stream_icon, it.name, kind === 'ch' ? 'logo' : '')));
+  const img = it => kind === 'ser' ? it.cover : it.stream_icon;
+  const pick = items.filter(it => /^https?:/i.test(img(it) || '')).concat(items.filter(it => !/^https?:/i.test(img(it) || '')));
+  pick.slice(0, cols * rows).forEach(it => box.append(art(img(it), it.name, kind === 'ch' ? 'logo' : '')));
   return box;
 }
 function miniGuide() {
@@ -427,7 +429,8 @@ views.home = async (v) => {
   ].filter(Boolean).slice(0, 7);
   cands.push(['Settings', glyph(ICON.sliders, ''), () => go('settings')]);
   const tiles = cands.map(([label, thumb, fn], i) => h('div', { class: 'f hub', tabindex: 0, 'data-autofocus': i === 0 ? '1' : null, onclick: fn }, h('div', { class: 'hub-img' }, thumb), h('div', { class: 'hub-cap' }, label)));
-  const feat = S.d.vod.filter(x => x.stream_icon)[0] || S.d.vod[0];
+  const withArt = S.d.vod.filter(x => /^https?:/i.test(x.stream_icon || ''));
+  const feat = withArt.slice(0, 80).sort((a, b) => (+b.rating || 0) - (+a.rating || 0))[0] || S.d.vod[0];
   tiles.push(feat
     ? h('div', { class: 'f hub feat', tabindex: 0, onclick: () => go('vod', { id: feat.stream_id }) },
         h('div', { class: 'hub-img' }, art(feat.stream_icon, feat.name), h('div', { class: 'feat-t' }, h('small', null, 'Featured'), h('b', null, feat.name))), h('div', { class: 'hub-cap' }, 'More info'))
