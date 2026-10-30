@@ -49,3 +49,7 @@ node scripts/smoke.js # headless smoke test (demo mode)
   Settings → Secrets and variables → Actions: `KEYSTORE_B64` (base64 of your `.jks`) and `KEYSTORE_PASSWORD`.
   Without them the build falls back to a debug-signed APK. Keep a backup of the keystore: if it's lost, existing
   installs can't be updated.
+
+## Web / iPhone version
+
+The browser version lives in `docs/app/` (a copy of `www/`) and is served by GitHub Pages at `/app/`. After changing anything in `www/`, run `npm run web` and commit `docs/app` so the web copy stays in step.

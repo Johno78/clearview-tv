@@ -6,6 +6,7 @@
   "scripts": {
     "prep": "node scripts/prep.js",
     "android:add": "npx cap add android && python3 scripts/patch_android.py",
+    "web": "node scripts/web.js",
     "android:sync": "npm run prep && npx cap sync android"
   },
   "dependencies": {

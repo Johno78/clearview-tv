@@ -129,7 +129,7 @@ const demo = (() => {
 /* ============================== xtream api ============================== */
 const wrap = u => (window.CV_PROXY && !S.demo) ? '/p/' + encodeURIComponent(u) : u;
 const api = {
-  base() { let s = (S.creds && S.creds.server || '').trim(); if (!s) return ''; if (!/^https?:\/\//i.test(s)) s = 'http://' + s; return s.replace(/\/+$/, ''); },
+  base() { let s = (S.creds && S.creds.server || '').trim(); if (!s) return ''; if (!/^https?:\/\//i.test(s)) s = (SECURE_PAGE && !window.Capacitor ? 'https://' : 'http://') + s; return s.replace(/\/+$/, ''); },
   cred() { return encodeURIComponent(S.creds.user) + '/' + encodeURIComponent(S.creds.pass); },
   async call(action, params) {
     if (S.demo) return demo.call(action || '', params || {});
@@ -187,6 +187,7 @@ function buildTabs() {
 }
 function focusables() { return $$('.f').filter(e => e.offsetParent !== null || e.getClientRects().length); }
 function focusIn(root, idx) {
+  if (TOUCH) return;
   const list = $$('.f', root).filter(e => !e.classList.contains('tab'));
   const el = (idx != null && list[idx]) || $('[data-autofocus]', root) || list[0] || $('.tab.on');
   if (el) el.focus({ preventScroll: false });
@@ -196,6 +197,7 @@ async function render(name, params, restore) {
   const v = $('#view'); v.innerHTML = ''; v.scrollTop = 0;
   S.cur = { name, params };
   $('#top').classList.toggle('home', name === 'home');
+  $('#back').classList.toggle('on', name !== 'home' && name !== 'login');
   $$('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === name || (name === 'vod' && t.dataset.tab === 'movies') || (name === 'seriesInfo' && t.dataset.tab === 'series')));
   try { await views[name](v, params || {}); } catch (e) { v.append(h('div', { class: 'empty' }, 'Something went wrong loading this screen.', h('br'), String(e && e.message || e))); console.error(e); }
   focusIn(v, restore);
@@ -355,6 +357,10 @@ function railView(v, o) {
 }
 
 /* ============================== views ============================== */
+const TOUCH = !!(window.matchMedia && matchMedia('(hover:none)').matches);
+const APPLE = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const SECURE_PAGE = location.protocol === 'https:';
+if (TOUCH) document.documentElement.classList.add('touch');
 views.login = async (v) => {
   $('#top').classList.add('hide');
   const c = S.creds || {};
@@ -365,6 +371,7 @@ views.login = async (v) => {
   async function submit() {
     const s = server.value.trim(), u = user.value.trim(), p = pass.value;
     if (!s || !u || !p) { err.textContent = 'Enter the server address, username and password from your provider.'; return; }
+    if (SECURE_PAGE && !isNative() && /^http:\/\//i.test(s)) { err.textContent = 'This web version can only connect to secure (https) addresses. Your browser blocks http ones. Ask your provider for an https address, or use the Android / Fire TV app.'; return; }
     S.demo = false; S.creds = { server: s, user: u, pass: p }; err.textContent = '';
     boot('Signing in…');
     try {
@@ -376,7 +383,7 @@ views.login = async (v) => {
       await enter();
     } catch (e) {
       bootOff(); S.creds = null;
-      err.textContent = (e instanceof TypeError || /Failed to fetch|NetworkError|abort/i.test(String(e.message))) ? 'Couldn’t reach that server. Check the address (including the port) and your connection.' : String(e.message || e);
+      err.textContent = (e instanceof TypeError || /Failed to fetch|NetworkError|abort/i.test(String(e.message))) ? 'Couldn’t reach that server. Check the address (including the port) and your connection.' + (!isNative() && SECURE_PAGE ? ' In a web browser the server must also allow web apps to connect to it.' : '') : String(e.message || e);
     }
   }
   v.append(h('div', { class: 'card' },
@@ -609,7 +616,7 @@ function fail(msg) { busy(false); const e = $('#pErr'); e.innerHTML = ''; e.appe
 function destroyMedia() { clearTimeout(P.wd); P.wdId++; const v = pv(); if (P.hls) { try { P.hls.destroy(); } catch (e) {} P.hls = null; } try { v.pause(); } catch (e) {} v.removeAttribute('src'); try { v.load(); } catch (e) {} }
 function attach(url, startAt) {
   destroyMedia(); const v = pv(); $('#pErr').classList.remove('on'); busy(true); P.retry = 0; P.resume = startAt || 0;
-  if (/\.m3u8(\?|$)/i.test(url) && window.Hls && Hls.isSupported()) {
+  if (/\.m3u8(\?|$)/i.test(url) && window.Hls && Hls.isSupported() && !APPLE) {
     const hls = new Hls({ maxBufferLength: 30, enableWorker: true }); P.hls = hls;
     hls.on(Hls.Events.ERROR, (_, d) => { if (d.fatal) { if (d.type === Hls.ErrorTypes.NETWORK_ERROR && P.retry++ < 2) hls.startLoad(); else if (d.type === Hls.ErrorTypes.MEDIA_ERROR && P.retry++ < 2) hls.recoverMediaError(); else fail(d.details); } });
     hls.loadSource(url); hls.attachMedia(v);
@@ -625,7 +632,7 @@ function attach(url, startAt) {
 function openPlayer() { if (!P.open) { P.ret = document.activeElement; P.open = true; $('#player').classList.add('on'); } }
 function closePlayer() {
   saveProgress(true); destroyMedia(); closeDrawer(); hideUI(); busy(false); $('#pErr').classList.remove('on');
-  P.open = false; P.item = null; P.queue = null; $('#player').classList.remove('on');
+  P.open = false; P.item = null; P.queue = null; $('#player').classList.remove('on'); $('#pTouch').classList.remove('on');
   if (S.cur && (S.cur.name === 'home' || S.cur.name === 'seriesInfo' || S.cur.name === 'vod')) { const c = S.cur; render(c.name, c.params, null); }
   else if (P.ret && document.body.contains(P.ret)) P.ret.focus();
 }
@@ -669,9 +676,9 @@ function playVod(rec, queue, qi, force) {
   P.type = 'vod'; P.item = rec; P.queue = queue || null; P.qi = qi || 0; openPlayer();
   const pr = S.prog[rec.key]; attach(rec.url, pr && pr.t > 10 ? pr.t : 0);
   const bar = $('#pBar'); bar.innerHTML = '';
-  bar.append(h('div', { class: 'pi-t' }, rec.title), rec.sub && rec.sub !== rec.title ? h('div', { class: 'pi-n' }, rec.sub) : null,
+  bar.append(...[h('div', { class: 'pi-t' }, rec.title), rec.sub && rec.sub !== rec.title ? h('div', { class: 'pi-n' }, rec.sub) : null,
     h('div', { class: 'pbar' }, h('u', { id: 'pFill' })), h('div', { class: 'pb-times' }, h('span', { id: 'pCur' }, '0:00'), h('span', { id: 'pDur' }, '0:00')),
-    h('div', { class: 'pi-h' }, '◀▶ skip 10s  ·  OK pause / play  ·  Back to exit'));
+    h('div', { class: 'pi-h' }, '◀▶ skip 10s  ·  OK pause / play  ·  Back to exit')].filter(Boolean));
   showUI('#pBar'); $('#pInfo').classList.remove('on');
 }
 function resumeRec(r) { const url = r.type === 'ep' ? api.episode(r.id, r.ext) : api.movie(r.id, r.ext); playVod({ ...r, url }); }
@@ -741,6 +748,53 @@ function wireVideo() {
   document.addEventListener('visibilitychange', () => { if (document.hidden) saveProgress(true); });
 }
 
+
+/* ============================== touch (phone) ============================== */
+const IC = {
+  close: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg>',
+  prev: '<svg viewBox="0 0 24 24" fill="#fff"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg>',
+  next: '<svg viewBox="0 0 24 24" fill="#fff"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg>',
+  play: '<svg viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z"/></svg>',
+  pause: '<svg viewBox="0 0 24 24" fill="#fff"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>',
+  back10: '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 3-6.2M4 4v4h4"/><text x="12" y="15.5" font-size="7" fill="#fff" stroke="none" text-anchor="middle" font-family="sans-serif">10</text></svg>',
+  fwd10: '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-3-6.2M20 4v4h-4"/><text x="12" y="15.5" font-size="7" fill="#fff" stroke="none" text-anchor="middle" font-family="sans-serif">10</text></svg>',
+  list: '<svg viewBox="0 0 24 24" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>',
+  star: '<svg viewBox="0 0 24 24" fill="#ffd54a"><path d="M12 2l3 6.9 7.5.7-5.7 5 1.7 7.4L12 18.1 5.5 22l1.7-7.4-5.7-5 7.5-.7z"/></svg>'
+};
+let touchT = 0;
+function touchBtn(icon, fn, cls) { return h('button', { class: 'tb ' + (cls || ''), type: 'button', onclick: e => { e.stopPropagation(); fn(); showTouch(); } }, SVG(icon)); }
+function showTouch() {
+  const t = $('#pTouch'); if (!t || !P.open) return; t.innerHTML = '';
+  const v = pv(), live = P.type === 'live';
+  t.append(h('button', { class: 'tb tclose', type: 'button', onclick: e => { e.stopPropagation(); closePlayer(); } }, SVG(IC.close)));
+  const row = h('div', { class: 'trow' });
+  if (live) row.append(touchBtn(IC.list, () => playerKey('left')), touchBtn(IC.prev, () => playerKey('up')), touchBtn(IC.next, () => playerKey('down')), touchBtn(IC.star, () => playerKey('right')));
+  else {
+    row.append(touchBtn(IC.prev, () => playerKey('chup')), touchBtn(IC.back10, () => seek(-10)), touchBtn(v.paused ? IC.play : IC.pause, () => { v.paused ? v.play() : v.pause(); }, 'big'), touchBtn(IC.fwd10, () => seek(10)), touchBtn(IC.next, () => playerKey('chdn')));
+  }
+  t.append(row);
+  if (!live) { const r = h('input', { class: 'tseek', type: 'range', min: 0, max: 1000, value: v.duration ? Math.round(v.currentTime / v.duration * 1000) : 0 }); r.addEventListener('input', () => { if (v.duration) v.currentTime = v.duration * r.value / 1000; showTouch.keep(); }); r.addEventListener('click', e => e.stopPropagation()); t.append(r); }
+  t.classList.add('on'); clearTimeout(touchT); touchT = setTimeout(() => t.classList.remove('on'), 4500);
+  showUI(live ? '#pInfo' : '#pBar', 4500);
+}
+showTouch.keep = () => { clearTimeout(touchT); touchT = setTimeout(() => $('#pTouch').classList.remove('on'), 4500); };
+function wireTouch() {
+  const pl = $('#player');
+  pl.addEventListener('click', e => { if (!P.open || e.target.closest('.tb,.tseek,.drawer,.p-err')) return; const t = $('#pTouch'); if (t.classList.contains('on')) { t.classList.remove('on'); hideUI(); } else showTouch(); });
+  $('#pErr').addEventListener('click', e => { if (P.open) closePlayer(); });
+  // long-press a tile / channel to add or remove it from favourites
+  let lp = null, moved = false;
+  document.addEventListener('touchstart', e => {
+    const t = e.target.closest && e.target.closest('[data-fav]'); if (!t) return; moved = false;
+    lp = setTimeout(() => { lp = null; if (moved) return; const [ty, id] = t.dataset.fav.split(':'); const on = toggleFav(ty, id); t.classList.toggle('is-fav', on); toast(on ? 'Added to favourites' : 'Removed from favourites'); t.dataset.lpd = '1'; }, 600);
+  }, { passive: true });
+  document.addEventListener('touchmove', () => { moved = true; if (lp) { clearTimeout(lp); lp = null; } }, { passive: true });
+  document.addEventListener('touchend', () => { if (lp) { clearTimeout(lp); lp = null; } }, { passive: true });
+  document.addEventListener('click', e => { const t = e.target.closest && e.target.closest('[data-lpd]'); if (t) { e.stopPropagation(); e.preventDefault(); delete t.dataset.lpd; } }, true);
+  $('#back').addEventListener('click', () => goBack());
+  ['play', 'pause'].forEach(ev => pv().addEventListener(ev, () => { if (P.open && $('#pTouch').classList.contains('on')) showTouch(); }));
+}
+
 /* ============================== boot ============================== */
 function boot(msg) { $('#boot').classList.remove('hide'); bootMsg(msg); }
 function bootMsg(m) { $('#bootMsg').textContent = m; }
@@ -751,7 +805,7 @@ async function enter() {
   await render('home', {});
 }
 async function start() {
-  applyTheme(S.opts.theme); buildTabs(); wireVideo(); tickClock();
+  applyTheme(S.opts.theme); buildTabs(); wireVideo(); wireTouch(); tickClock();
   $('#hs').addEventListener('keydown', e => { if (e.key === 'Enter') { const q = e.target.value.trim(); if (q) { e.target.blur(); e.target.value = ''; go('search', { q }); } } }); setInterval(tickClock, 20000);
   if (S.creds) {
     boot('Signing in…');
@@ -764,5 +818,6 @@ async function start() {
   $('#top').classList.add('hide'); bootOff(); await render('login', {});
 }
 window.__cv = { S, go, render, views, api, demo, P, playLive, playVod, h, goBack, move };
+if ('serviceWorker' in navigator && SECURE_PAGE && !window.Capacitor) navigator.serviceWorker.register('sw.js').catch(() => {});
 start();
 })();
