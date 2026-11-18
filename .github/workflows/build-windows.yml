@@ -43,4 +43,6 @@ jobs:
           gh release delete windows --yes --cleanup-tag || true
           cp "electron/dist/Clearview-Portable.exe" Clearview-Portable.exe
           cp electron/dist/Clearview-Setup.exe Clearview-Setup.exe
-          gh release create windows Clearview-Setup.exe Clearview-Portable.exe --title "Clearview for Windows" --notes "Latest Windows build of Clearview." --latest=false
+          mv electron/dist/win-unpacked Clearview
+          powershell -NoProfile -Command "Compress-Archive -Path Clearview -DestinationPath Clearview-Windows.zip -CompressionLevel Optimal"
+          gh release create windows Clearview-Windows.zip Clearview-Setup.exe Clearview-Portable.exe --title "Clearview for Windows" --notes "Latest Windows build of Clearview." --latest=false
