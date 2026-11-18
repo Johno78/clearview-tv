@@ -50,7 +50,7 @@ const S = {
   creds: LS.get('creds', null), demo: LS.get('demo', false), info: null,
   d: { liveCats: [], live: [], vodCats: [], vod: [], serCats: [], series: [] },
   favs: LS.get('favs', { live: [], vod: [], series: [] }),
-  prog: LS.get('prog', {}), opts: Object.assign({ player: 'builtin', theme: 'aurora' }, LS.get('opts', {})), stack: [], cur: null
+  prog: LS.get('prog', {}), opts: Object.assign({ player: 'builtin', theme: 'aurora', home: 'sky' }, LS.get('opts', {})), stack: [], cur: null
 };
 const favKey = (t, id) => t + ':' + id;
 const isFav = (t, id) => S.favs[t].indexOf(String(id)) >= 0;
@@ -415,8 +415,34 @@ function miniGuide() {
   if (!rows.length) return glyph(ICON.play, 'No channels yet');
   return h('div', { class: 'mini' }, rows.map((c, i) => h('div', { class: 'mrow' + (i === 0 ? ' on' : '') }, h('b', null, c.num || i + 1), h('span', null, c.name))));
 }
+const BIG = {
+  live: '<svg viewBox="0 0 64 64" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="14" width="52" height="34" rx="5"/><path d="M22 56h20M26 14l-6-8M38 14l6-8"/><path d="M27 24v14l12-7z" fill="#fff"/></svg>',
+  movies: '<svg viewBox="0 0 64 64" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="12" width="48" height="40" rx="5"/><path d="M8 24h48M8 40h48M20 12v40M44 12v40"/></svg>',
+  series: '<svg viewBox="0 0 64 64" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><rect x="14" y="20" width="40" height="30" rx="4"/><path d="M20 14h28M26 8h16"/><path d="M30 28v14l11-7z" fill="#fff"/></svg>',
+  guide: '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v16"/></svg>',
+  fav: '<svg viewBox="0 0 24 24" fill="#fff"><path d="M12 2l3 6.9 7.5.7-5.7 5 1.7 7.4L12 18.1 5.5 22l1.7-7.4-5.7-5 7.5-.7z"/></svg>',
+  cont: '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+  search: '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>',
+  settings: '<svg viewBox="0 0 24 24"><g stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></g><g fill="#fff"><circle cx="9" cy="7" r="2.4"/><circle cx="15" cy="12" r="2.4"/><circle cx="8" cy="17" r="2.4"/></g></svg>'
+};
+function homeSimple(v) {
+  const prog = Object.values(S.prog).sort((a, b) => b.ts - a.ts);
+  const big = (cls, ic, label, sub, fn, af) => h('div', { class: 'f sbig ' + cls, tabindex: 0, 'data-autofocus': af ? '1' : null, onclick: fn }, SVG(BIG[ic]), h('b', null, label), h('small', null, sub));
+  const sm = (ic, label, fn) => h('div', { class: 'f ssm', tabindex: 0, onclick: fn }, SVG(BIG[ic]), h('span', null, label));
+  v.append(h('div', { class: 'simple' },
+    h('div', { class: 'sbigs' },
+      big('c1', 'live', 'Live TV', S.d.live.length + ' channels', () => go('live'), true),
+      big('c2', 'movies', 'Movies', S.d.vod.length + ' titles', () => go('movies')),
+      big('c3', 'series', 'Series', S.d.series.length + ' shows', () => go('series'))),
+    h('div', { class: 'ssms' },
+      sm('guide', 'TV Guide', () => go('guide')),
+      sm('fav', 'Favourites', () => go('favs')),
+      sm('cont', 'Continue', () => prog[0] ? resumeRec(prog[0]) : toast('Nothing to continue yet')),
+      sm('settings', 'Settings', () => go('settings')))));
+}
 views.home = async (v) => {
   $('#top').classList.remove('hide');
+  if (S.opts.home === 'simple') return homeSimple(v);
   const prog = Object.values(S.prog).sort((a, b) => b.ts - a.ts);
   const catBy = re => S.d.liveCats.find(c => re.test(c.category_name || ''));
   const inCat = c => S.d.live.filter(x => String(x.category_id) === String(c.category_id));
@@ -580,6 +606,13 @@ function themePicker() {
   $$('.chip', box).forEach(c => { const t = c.dataset.id; const tmp = document.createElement('div'); tmp.setAttribute('data-theme', t); document.body.append(tmp); const sw = getComputedStyle(tmp).getPropertyValue('--sw'); tmp.remove(); c.firstChild.style.setProperty('--sw', sw); });
   return h('div', null, h('label', { style: 'display:block;color:var(--dim);font-size:1.15rem;margin:1.4rem 0 .2rem' }, 'Background theme'), box);
 }
+function homePicker() {
+  const box = h('div', { class: 'chips', style: 'padding:.4rem 0 1rem' });
+  [['sky', 'Picture tiles'], ['simple', 'Simple']].forEach(([id, label]) => box.append(h('div', { class: 'f chip' + (S.opts.home === id ? ' on' : ''), tabindex: 0, 'data-id': id, onclick: () => {
+    S.opts.home = id; LS.set('opts', S.opts); $$('.chip', box).forEach(c => c.classList.toggle('on', c.dataset.id === id)); toast('Home screen changed');
+  } }, label)));
+  return h('div', null, h('label', { style: 'display:block;color:var(--dim);font-size:1.15rem;margin:1.4rem 0 .4rem .2rem' }, 'Home screen layout'), box);
+}
 function playerPicker() {
   const opts = [['builtin', 'Built-in'], ['vlc', 'VLC'], ['any', 'Choose app']];
   const box = h('div', { class: 'chips', style: 'padding-left:0' });
@@ -599,6 +632,7 @@ views.settings = async (v) => {
       h('span', null, 'Connections'), h('span', null, (i.active_cons || 0) + ' of ' + (i.max_connections || '?') + ' in use'),
       h('span', null, 'Library'), h('span', null, S.d.live.length + ' channels · ' + S.d.vod.length + ' movies · ' + S.d.series.length + ' series')),
     themePicker(),
+    homePicker(),
     playerPicker(),
     h('div', { class: 'acts' },
       h('div', { class: 'f btn pri', tabindex: 0, 'data-autofocus': '1', onclick: async () => { boot('Refreshing library…'); epgCache.clear(); await loadLibrary(bootMsg); bootOff(); go('home', {}, { reset: true }); } }, 'Refresh library'),

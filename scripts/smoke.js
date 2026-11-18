@@ -79,7 +79,8 @@ const check = (name, cond, extra) => { console.log((cond ? 'PASS ' : 'FAIL ') + 
   const btn = [...w.document.querySelectorAll('.btn')].find(b => /Play in VLC/.test(b.textContent)); btn.click(); await sleep(100);
   check('Play in VLC button forces VLC', calls.length === 2 && !cv.P.open);
   await cv.go('settings', {}, { reset: true }); await sleep(100);
-  check('settings has theme + player pickers', q('.chip.swatch') === 6 && q('.chip') === 9, q('.chip.swatch') + ' themes / ' + q('.chip') + ' chips');
+  { const c = [...w.document.querySelectorAll('.chip')].find(x => x.textContent === 'Simple'); c.click(); await sleep(50); await cv.go('home', {}, { reset: true }); await sleep(200); check('simple home has 3 big tiles + 4 small', q('.sbig') === 3 && q('.ssm') === 4, q('.sbig') + '/' + q('.ssm')); cv.S.opts.home = 'sky'; await cv.go('settings', {}, { reset: true }); await sleep(100); }
+  check('settings has theme + player pickers', q('.chip.swatch') === 6 && q('.chip') === 11, q('.chip.swatch') + ' themes / ' + q('.chip') + ' chips');
   w.document.querySelector('.chip[data-id="vlc"]').click();
   check('picker saves choice', cv.S.opts.player === 'vlc' && JSON.parse(w.localStorage.getItem('cv.opts')).player === 'vlc');
   w.document.querySelector('.chip.swatch[data-id="sunset"]').click();
