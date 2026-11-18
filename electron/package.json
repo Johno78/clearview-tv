@@ -1,0 +1,44 @@
+{
+  "name": "clearview-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Clearview - a simple media player",
+  "author": "Clearview",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win --x64 --publish never"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "app.clearview.desktop",
+    "productName": "Clearview",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "app/**/*"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "shortcutName": "Clearview",
+      "artifactName": "Clearview-Setup.${ext}"
+    },
+    "portable": {
+      "artifactName": "Clearview-Portable.exe"
+    }
+  }
+}

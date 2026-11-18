@@ -7,6 +7,8 @@ on:
       - "docs/**"
       - "desktop/**"
       - "README.md"
+      - "electron/**"
+      - ".github/workflows/build-windows.yml"
   workflow_dispatch:
 
 permissions:

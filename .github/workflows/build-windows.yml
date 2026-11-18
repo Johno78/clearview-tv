@@ -1,0 +1,46 @@
+name: Build Windows app
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "www/**"
+      - "electron/**"
+      - ".github/workflows/build-windows.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Get hls.js and copy the app
+        shell: bash
+        run: |
+          npm install --no-audit --no-fund
+          node scripts/prep.js
+          rm -rf electron/app && mkdir -p electron/app
+          cp -r www/. electron/app/
+          rm -f electron/app/sw.js electron/app/manifest.webmanifest
+      - name: Build installer and portable exe
+        working-directory: electron
+        shell: bash
+        run: |
+          npm install --no-audit --no-fund
+          npx electron-builder --win --x64 --publish never
+          ls -la dist
+      - name: Publish to the "windows" release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete windows --yes --cleanup-tag || true
+          cp "electron/dist/Clearview-Portable.exe" Clearview-Portable.exe
+          cp electron/dist/Clearview-Setup.exe Clearview-Setup.exe
+          gh release create windows Clearview-Setup.exe Clearview-Portable.exe --title "Clearview for Windows" --notes "Latest Windows build of Clearview." --latest=false
