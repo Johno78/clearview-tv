@@ -237,9 +237,9 @@ body{background:var(--grad);background-attachment:fixed}
 .swatch i{width:3.2rem;height:2rem;border-radius:.4rem;background:var(--sw);box-shadow:0 0 0 1px rgba(255,255,255,.35)}
 
 /* ---------- back button + touch player controls (hidden on TV) ---------- */
-#back{display:none;width:3.4rem;height:3.4rem;flex:none;border:0;border-radius:50%;background:var(--glass2);color:#fff;font-size:2.6rem;line-height:3rem;padding:0 0 .2rem}
+#back{display:none;cursor:pointer;width:3.4rem;height:3.4rem;flex:none;border:0;border-radius:50%;background:var(--glass2);color:#fff;font-size:2.6rem;line-height:3rem;padding:0 0 .2rem}
 .p-touch{position:absolute;inset:0;display:none;pointer-events:none}
-html.touch .p-touch.on{display:block}
+.p-touch.on{display:block}
 .p-touch .tb{pointer-events:auto;border:0;background:rgba(0,0,0,.45);border-radius:50%;width:5.2rem;height:5.2rem;display:flex;align-items:center;justify-content:center;padding:1.2rem}
 .p-touch .tb svg{width:100%;height:100%}
 .p-touch .tb.big{width:7rem;height:7rem;padding:1.6rem}
@@ -311,3 +311,4 @@ html.touch .f:not(input):focus{box-shadow:none!important;transform:none!importan
 html.touch .tab.on,html.touch .cat.on,html.touch .chip.on{background:var(--glass2)}
 html.touch .tab:focus{background:transparent}
 html.touch .tab.on:focus{background:var(--glass2)}
+@media (hover:hover){#back.on{display:block}#top .brand{margin-right:auto}#back.on+.brand{margin-left:.8rem}}

@@ -791,6 +791,8 @@ function wireTouch() {
   document.addEventListener('touchmove', () => { moved = true; if (lp) { clearTimeout(lp); lp = null; } }, { passive: true });
   document.addEventListener('touchend', () => { if (lp) { clearTimeout(lp); lp = null; } }, { passive: true });
   document.addEventListener('click', e => { const t = e.target.closest && e.target.closest('[data-lpd]'); if (t) { e.stopPropagation(); e.preventDefault(); delete t.dataset.lpd; } }, true);
+  // mouse users (Windows / browser): moving the mouse over the video shows the on-screen controls, with a close button
+  let mmT = 0; pl.addEventListener('mousemove', () => { if (!P.open || TOUCH) return; const n = Date.now(); if (n - mmT < 400) return; mmT = n; showTouch(); });
   $('#back').addEventListener('click', () => goBack());
   ['play', 'pause'].forEach(ev => pv().addEventListener(ev, () => { if (P.open && $('#pTouch').classList.contains('on')) showTouch(); }));
 }
